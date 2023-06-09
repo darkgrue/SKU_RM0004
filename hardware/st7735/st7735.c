@@ -1,4 +1,3 @@
-/* vim: set ai et ts=4 sw=4: */
 #include "st7735.h"
 #include "time.h"
 #include <stdio.h>
@@ -20,8 +19,14 @@
 
 int i2cd;
 
-/*
- * Set display coordinates
+/**
+ * @brief Set display coordinates.
+ *
+ * @param x0 X-coordinate of column origin.
+ * @param y0 Y-coordinate of row origin.
+ * @param x1 X-coordinate of column origin.
+ * @param y1 Y-coordinate of row origin.
+ * @return void
  */
 void lcd_set_address_window(uint8_t x0, uint8_t y0, uint8_t x1, uint8_t y1)
 {
@@ -35,8 +40,16 @@ void lcd_set_address_window(uint8_t x0, uint8_t y0, uint8_t x1, uint8_t y1)
     i2c_write_command(SYNC_REG, 0x00, 0x01);
 }
 
-/*
- * Display a single character
+/**
+ * @brief Display a single character.
+ *
+ * @param x X-coordinate of text origin.
+ * @param y Y-coordinate of text origin.
+ * @param ch Character to display.
+ * @param font Font set to use.
+ * @param color Text foreground color.
+ * @param bgcolor Text background color.
+ * @return void
  */
 void lcd_write_char(uint16_t x, uint16_t y, char ch, FontDef font, uint16_t color, uint16_t bgcolor)
 {
@@ -80,8 +93,16 @@ void lcd_write_ch(uint16_t x, uint16_t y, char ch, FontType font, uint16_t color
     }
 }
 
-/*
- * display string
+/**
+ * @brief Display a text string.
+ *
+ * @param x X-coordinate of text origin.
+ * @param y Y-coordinate of text origin.
+ * @param str String to display.
+ * @param font Font set to use.
+ * @param color Text foreground color.
+ * @param bgcolor Text background color.
+ * @return void
  */
 void lcd_write_string(uint16_t x, uint16_t y, char *str, FontDef font, uint16_t color, uint16_t bgcolor)
 {
@@ -131,8 +152,15 @@ void lcd_write_str(uint16_t x, uint16_t y, char *str, FontType font, uint16_t co
     }
 }
 
-/*
- * fill rectangle
+/**
+ * @brief Flood fill rectangle with selected color.
+ *
+ * @param x X-coordinate of rectangle origin.
+ * @param y Y-coordinate of rectangle origin.
+ * @param w Width of rectangle in pixels.
+ * @param h Height of rectangle in pixels.
+ * @param color Color to fill with.
+ * @return void
  */
 void lcd_fill_rectangle(uint16_t x, uint16_t y, uint16_t w, uint16_t h, uint16_t color)
 {
@@ -158,10 +186,12 @@ void lcd_fill_rectangle(uint16_t x, uint16_t y, uint16_t w, uint16_t h, uint16_t
     }
 }
 
-/*
- * fill screen
+/**
+ * @brief Flood fill screen with selected color.
+ *
+ * @param color Color to fill with.
+ * @return void
  */
-
 void lcd_fill_screen(uint16_t color)
 {
     lcd_fill_rectangle(0, 0, ST7735_WIDTH, ST7735_HEIGHT, color);
@@ -274,57 +304,76 @@ void lcd_display_percentage(uint8_t val, uint16_t color)
     }
 }
 
+/**
+ * @brief Display CPU utilization.
+ *
+ * @return void
+ */
 void lcd_display_cpuLoad(void)
 {
     char iPSource[20] = {0};
     uint8_t cpuLoad = 0;
     uint8_t cpuStr[10] = {0};
+
     lcd_fill_screen(ST7735_BLACK);
-    cpuLoad = get_cpu_message();
-    sprintf(cpuStr, "%d", cpuLoad);
     lcd_fill_rectangle(0, 20, ST7735_WIDTH, 5, ST7735_BLUE);
-    if (IP_SWITCH == IP_DISPLAY_OPEN)
+
+    if (DISPLAY_IP_ADDR)
     {
         lcd_write_string(0, 0, "IP:", Font_8x16, ST7735_WHITE, ST7735_BLACK);
-        strcpy(iPSource, get_ip_address());                                       // Get the IP address of the device's wireless network card
-        lcd_write_string(24, 0, iPSource, Font_8x16, ST7735_WHITE, ST7735_BLACK); // Send the IP address to the lower machine
+        strcpy(iPSource, GetIPAddress()); // Get the IP address of the default interface
+        lcd_write_string(24, 0, iPSource, Font_8x16, ST7735_WHITE, ST7735_BLACK);
     }
     else
     {
-        lcd_write_string(0, 0, CUSTOM_DISPLAY, Font_8x16, ST7735_WHITE, ST7735_BLACK); // Send the IP address to the lower machine
+        lcd_write_string(0, 0, CUSTOM_DISPLAY, Font_8x16, ST7735_WHITE, ST7735_BLACK);
     }
+
     lcd_write_string(36, 35, "CPU:", Font_11x18, ST7735_WHITE, ST7735_BLACK);
+    cpuLoad = GetCPUUsageTop();
+    cpuLoad = GetCPUUsagePstat();
+    sprintf(cpuStr, "%d", cpuLoad);
     lcd_write_string(80, 35, cpuStr, Font_11x18, ST7735_WHITE, ST7735_BLACK);
     lcd_write_string(113, 35, "%", Font_11x18, ST7735_WHITE, ST7735_BLACK);
     lcd_display_percentage(cpuLoad, ST7735_GREEN);
 }
 
+/**
+ * @brief Display RAM utilization.
+ *
+ * @return void
+ */
 void lcd_display_ram(void)
 {
-    float Totalram = 0.0;
-    float freeram = 0.0;
-    uint8_t residue = 0;
-    uint8_t Total[10] = {0};
-    uint8_t free[10] = {0};
-    uint8_t residueStr[10] = {0};
-    get_cpu_memory(&Totalram, &freeram);
-    residue = (Totalram - freeram) / Totalram * 100;
-    sprintf(residueStr, "%d", residue);
+    float MemTotal = 0.0;
+    float MemFree = 0.0;
+    uint8_t ramPct = 0;
+    uint8_t ramStr[10] = {0};
+
     lcd_fill_rectangle(0, 35, ST7735_WIDTH, 20, ST7735_BLACK);
     lcd_write_string(36, 35, "RAM:", Font_11x18, ST7735_WHITE, ST7735_BLACK);
-    lcd_write_string(80, 35, residueStr, Font_11x18, ST7735_WHITE, ST7735_BLACK);
+    GetMemory(&MemTotal, &MemFree);
+    ramPct = (MemTotal - MemFree) / MemTotal * 100;
+    sprintf(ramStr, "%d", ramPct);
+    lcd_write_string(80, 35, ramStr, Font_11x18, ST7735_WHITE, ST7735_BLACK);
     lcd_write_string(113, 35, "%", Font_11x18, ST7735_WHITE, ST7735_BLACK);
-    lcd_display_percentage(residue, ST7735_YELLOW);
+    lcd_display_percentage(ramPct, ST7735_YELLOW);
 }
 
+/**
+ * @brief Display CPU temperature.
+ *
+ * @return void
+ */
 void lcd_display_temp(void)
 {
     uint16_t temp = 0;
     uint8_t tempStr[10] = {0};
-    temp = get_temperature();
-    sprintf(tempStr, "%d", temp);
+
     lcd_fill_rectangle(0, 35, ST7735_WIDTH, 20, ST7735_BLACK);
     lcd_write_string(30, 35, "TEMP:", Font_11x18, ST7735_WHITE, ST7735_BLACK);
+    temp = GetCPUTemperature();
+    sprintf(tempStr, "%d", temp);
     lcd_write_string(85, 35, tempStr, Font_11x18, ST7735_WHITE, ST7735_BLACK);
     if (TEMPERATURE_TYPE == FAHRENHEIT)
     {
@@ -342,9 +391,13 @@ void lcd_display_temp(void)
     lcd_display_percentage((uint16_t)temp, ST7735_RED);
 }
 
+/**
+ * @brief Display filesystem utilization.
+ *
+ * @return void
+ */
 void lcd_display_disk(void)
 {
-
     uint16_t diskMemSize = 0;
     uint16_t diskUseMemSize = 0;
     uint32_t sdMemSize = 0;
@@ -352,20 +405,18 @@ void lcd_display_disk(void)
 
     uint16_t memTotal = 0;
     uint16_t useMemTotal = 0;
-    uint16_t residue = 0;
-    uint8_t residueStr[10] = {0};
-
-    get_sd_memory(&sdMemSize, &sdUseMemSize);
-    get_hard_disk_memory(&diskMemSize, &diskUseMemSize);
-
-    memTotal = sdMemSize + diskMemSize;
-    useMemTotal = sdUseMemSize + diskUseMemSize;
-    residue = useMemTotal * 1.0 / memTotal * 100;
-    sprintf(residueStr, "%d", residue);
+    uint16_t fsPct = 0;
+    uint8_t fsStr[10] = {0};
 
     lcd_fill_rectangle(0, 35, ST7735_WIDTH, 20, ST7735_BLACK);
     lcd_write_string(30, 35, "DISK:", Font_11x18, ST7735_WHITE, ST7735_BLACK);
-    lcd_write_string(85, 35, residueStr, Font_11x18, ST7735_WHITE, ST7735_BLACK);
+    GetFSMemoryStatfs(&sdMemSize, &sdUseMemSize);
+    GetFSMemoryDf(&sdMemSize, &sdUseMemSize);
+    memTotal = sdMemSize + diskMemSize;
+    useMemTotal = sdUseMemSize + diskUseMemSize;
+    fsPct = useMemTotal * 1.0 / memTotal * 100;
+    sprintf(fsStr, "%d", fsPct);
+    lcd_write_string(85, 35, fsStr, Font_11x18, ST7735_WHITE, ST7735_BLACK);
     lcd_write_string(118, 35, "%", Font_11x18, ST7735_WHITE, ST7735_BLACK);
     lcd_display_percentage(residue, ST7735_BLUE);
 }
