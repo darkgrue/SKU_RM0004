@@ -16,10 +16,10 @@
 /************************Turn off the IP display. Can customize the display****************/
 
 char *GetIPAddress(void);
-void GetMemory(float *MemTotal, float *MemFree);
-void GetFSMemoryStatfs(uint32_t *MemSize, uint32_t *freesize);
-void GetFSMemoryDf(uint32_t *MemSize, uint32_t *freesize);
-float GetCPUTemperature(void);
+uint8_t GetMemory(void);
+uint8_t GetFSMemoryStatfs(void);
+uint8_t GetFSMemoryDf(void);
+uint8_t GetCPUTemperature(void);
 uint8_t GetCPUUsageTop(void);
 uint8_t GetCPUUsagePstat(void);
 

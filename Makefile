@@ -1,5 +1,6 @@
-TATGET := display
+TARGET := display
 CC     := gcc
+LIBS = -lm
 
 OBJ := obj
 
@@ -19,8 +20,8 @@ INCLUDE := $(patsubst %, -I %, $(SRCDIRS))
 
 VPATH := $(SRCDIRS)
 
-$(TATGET):$(OBJS)
-	$(CC) -o $@ $^
+$(TARGET):$(OBJS)
+	$(CC) -o $@ $^ $(LIBS)
 $(OBJS) : obj/%.o : %.c
 	$(CC) -c $(INCLUDE) -o $@ $<
 

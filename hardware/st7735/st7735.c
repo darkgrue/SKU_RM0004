@@ -313,10 +313,14 @@ void lcd_display_cpuLoad(void)
 {
     char iPSource[20] = {0};
     uint8_t cpuLoad = 0;
-    uint8_t cpuStr[10] = {0};
+    char cpuStr[10] = {0};
 
     lcd_fill_screen(ST7735_BLACK);
     lcd_fill_rectangle(0, 20, ST7735_WIDTH, 5, ST7735_BLUE);
+
+    // cpuLoad = GetCPUUsageTop();
+    cpuLoad = GetCPUUsagePstat();
+    sprintf(cpuStr, "%u", cpuLoad);
 
     if (DISPLAY_IP_ADDR)
     {
@@ -330,9 +334,6 @@ void lcd_display_cpuLoad(void)
     }
 
     lcd_write_string(36, 35, "CPU:", Font_11x18, ST7735_WHITE, ST7735_BLACK);
-    cpuLoad = GetCPUUsageTop();
-    cpuLoad = GetCPUUsagePstat();
-    sprintf(cpuStr, "%d", cpuLoad);
     lcd_write_string(80, 35, cpuStr, Font_11x18, ST7735_WHITE, ST7735_BLACK);
     lcd_write_string(113, 35, "%", Font_11x18, ST7735_WHITE, ST7735_BLACK);
     lcd_display_percentage(cpuLoad, ST7735_GREEN);
@@ -345,16 +346,14 @@ void lcd_display_cpuLoad(void)
  */
 void lcd_display_ram(void)
 {
-    float MemTotal = 0.0;
-    float MemFree = 0.0;
     uint8_t ramPct = 0;
-    uint8_t ramStr[10] = {0};
+    char ramStr[10] = {0};
+
+    ramPct = GetMemory();
+    sprintf(ramStr, "%d", ramPct);
 
     lcd_fill_rectangle(0, 35, ST7735_WIDTH, 20, ST7735_BLACK);
     lcd_write_string(36, 35, "RAM:", Font_11x18, ST7735_WHITE, ST7735_BLACK);
-    GetMemory(&MemTotal, &MemFree);
-    ramPct = (MemTotal - MemFree) / MemTotal * 100;
-    sprintf(ramStr, "%d", ramPct);
     lcd_write_string(80, 35, ramStr, Font_11x18, ST7735_WHITE, ST7735_BLACK);
     lcd_write_string(113, 35, "%", Font_11x18, ST7735_WHITE, ST7735_BLACK);
     lcd_display_percentage(ramPct, ST7735_YELLOW);
@@ -368,12 +367,13 @@ void lcd_display_ram(void)
 void lcd_display_temp(void)
 {
     uint16_t temp = 0;
-    uint8_t tempStr[10] = {0};
+    char tempStr[10] = {0};
+
+    temp = GetCPUTemperature();
+    sprintf(tempStr, "%d", temp);
 
     lcd_fill_rectangle(0, 35, ST7735_WIDTH, 20, ST7735_BLACK);
     lcd_write_string(30, 35, "TEMP:", Font_11x18, ST7735_WHITE, ST7735_BLACK);
-    temp = GetCPUTemperature();
-    sprintf(tempStr, "%d", temp);
     lcd_write_string(85, 35, tempStr, Font_11x18, ST7735_WHITE, ST7735_BLACK);
     if (TEMPERATURE_TYPE == FAHRENHEIT)
     {
@@ -388,7 +388,7 @@ void lcd_display_temp(void)
         temp -= 32;
         temp /= 1.8;
     }
-    lcd_display_percentage((uint16_t)temp, ST7735_RED);
+    lcd_display_percentage((uint16_t)((float)temp / 85 * 100.0), ST7735_RED);
 }
 
 /**
@@ -398,25 +398,16 @@ void lcd_display_temp(void)
  */
 void lcd_display_disk(void)
 {
-    uint16_t diskMemSize = 0;
-    uint16_t diskUseMemSize = 0;
-    uint32_t sdMemSize = 0;
-    uint32_t sdUseMemSize = 0;
+    uint8_t fsUsed = 0;
+    char fsStr[10] = {0};
 
-    uint16_t memTotal = 0;
-    uint16_t useMemTotal = 0;
-    uint16_t fsPct = 0;
-    uint8_t fsStr[10] = {0};
+    // fsUsed = GetFSMemoryStatfs();
+    fsUsed = GetFSMemoryDf();
+    sprintf(fsStr, "%u", fsUsed);
 
     lcd_fill_rectangle(0, 35, ST7735_WIDTH, 20, ST7735_BLACK);
     lcd_write_string(30, 35, "DISK:", Font_11x18, ST7735_WHITE, ST7735_BLACK);
-    GetFSMemoryStatfs(&sdMemSize, &sdUseMemSize);
-    GetFSMemoryDf(&sdMemSize, &sdUseMemSize);
-    memTotal = sdMemSize + diskMemSize;
-    useMemTotal = sdUseMemSize + diskUseMemSize;
-    fsPct = useMemTotal * 1.0 / memTotal * 100;
-    sprintf(fsStr, "%d", fsPct);
     lcd_write_string(85, 35, fsStr, Font_11x18, ST7735_WHITE, ST7735_BLACK);
     lcd_write_string(118, 35, "%", Font_11x18, ST7735_WHITE, ST7735_BLACK);
-    lcd_display_percentage(residue, ST7735_BLUE);
+    lcd_display_percentage(fsUsed, ST7735_BLUE);
 }

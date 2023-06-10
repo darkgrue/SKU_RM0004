@@ -1,5 +1,6 @@
 #include "rpiInfo.h"
 #include <stdio.h>
+#include <math.h>
 #include <string.h>
 #include <sys/sysinfo.h>
 #include <sys/vfs.h>
@@ -76,112 +77,123 @@ char *GetIPAddress(void)
 }
 
 /**
- * @brief Get total and free RAM.
+ * @brief Get free RAM.
  *
- * @param MemTotal Total amount of RAM.
- * @param MemFree Free amount of RAM.
- * @return void
+ * @return Free RAM in percent.
  */
-void GetMemory(float *MemTotal, float *MemFree)
+uint8_t GetMemory(void)
 {
   struct sysinfo s_info;
-
-  unsigned int value = 0;
   unsigned char buffer[100] = {0};
-  unsigned char famer[100] = {0};
+  unsigned char key[100] = {0};
+  unsigned int value = 0;
+  uint32_t memTotal = 0;
+  uint32_t memFree = 0;
 
   if (sysinfo(&s_info) == 0) // Get memory information
   {
-    FILE *fp = fopen("/proc/meminfo", "r");
+    FILE *fd = fopen("/proc/meminfo", "r");
     if (fd == NULL)
     {
       fprintf(stderr, "rpiInfo: Unable to open /proc/meminfo file.\n");
       return 0;
     }
 
-    while (fgets(buffer, sizeof(buffer), fp))
+    while (fgets(buffer, sizeof(buffer), fd))
     {
-      if (sscanf(buffer, "%s%u", famer, &value) != 2)
+      if (sscanf(buffer, "%s%u", key, &value) != 2)
       {
         continue;
       }
-      if (strcmp(famer, "MemTotal:") == 0)
+      if (strcmp(key, "MemTotal:") == 0)
       {
-        *MemTotal = value / 1000.0 / 1000.0;
+        memTotal = value;
       }
-      else if (strcmp(famer, "MemFree:") == 0)
+      else if (strcmp(key, "MemFree:") == 0)
       {
-        *MemFree = value / 1000.0 / 1000.0;
+        memFree = value;
       }
     }
-    fclose(fp);
+    fclose(fd);
   }
+  float ramPct = (float)(memTotal - memFree) / memTotal * 100.0;
+
+  /*
+  fprintf(stderr, "MemTotal: %lu, MemFree: %lu (%f %%)\n", memTotal, memFree, ramPct);
+  */
+
+  return round(ramPct);
 }
 
 /**
  * @brief Get mounted filesystem information.
  *
- * @param MemSize Total amount of FS storage.
- * @param freesize Free amount of FS storage.
- * @return void
+ * @return Used amount of FS storage in percent.
  */
-void GetFSMemoryStatfs(uint32_t *MemSize, uint32_t *freesize)
+uint8_t GetFSMemoryStatfs(void)
 {
   char *mnt_dir = "/";
   struct statfs fs;
+  float pctFree = 0;
 
   if (statfs(mnt_dir, &fs) == 0) // Get mounted filesystem information
   {
-    unsigned long long blocksize = fs.f_bsize;       // The number of bytes per block
-    unsigned long long totalsize = fs * fs.f_blocks; // Total number of bytes
-    *MemSize = (unsigned int)(totalsize >> 30);
+    unsigned long long blockSize = fs.f_bsize;                  // The number of bytes per block
+    unsigned long long totalSize = blockSize * fs.f_blocks;     // Total data blocks in filesystem
+    unsigned long long availableSize = blockSize * fs.f_bavail; // Free blocks available to unprivileged user
+    totalSize = totalSize >> 30;
+    availableSize = availableSize >> 30;
+    pctFree = (float)(totalSize - availableSize) / totalSize * 100.0;
 
-    unsigned long long size = blocksize * fs.f_bfree; // Now let's figure out how much space we have left
-    *freesize = size >> 30;
-    *freesize = *MemSize - *freesize;
-
-    fprintf(stderr, "f_bsize: %u\n", fs.blocksize);
-    fprintf(stderr, "Disk Free: %f GiB\tTotal: %f GiB\n", freesize, MemSize);
+    /*
+    fprintf(stderr, "(statfs) f_bsize: %u\n", blockSize);
+    fprintf(stderr, "(statfs) Disk Free: %llu GiB, Disk Used: %llu GiB (%f %%), Total: %llu GiB\n", availableSize, totalSize - availableSize, pctFree, totalSize);
+    fprintf(stderr, "(statfs) Disk Used: %u %%\n", *fsUsed);
+    */
   }
   else
   {
     fprintf(stderr, "rpiInfo: Unable to stat %s filesystem.\n", mnt_dir);
+    return 0;
   }
+
+  return round(pctFree);
 }
 
 /**
  * @brief Get mounted filesystem information using df/awk (better portability).
  *
- * @param MemSize Total amount of FS storage in gibibytes.
- * @param freesize Free amount of FS storage in gibibytes.
- * @return void
+ * @return Used amount of FS storage in percent.
  */
-void GetFSMemoryDf(uint32_t *MemSize, uint32_t *freesize)
+uint8_t GetFSMemoryDf(void)
 {
   char *mnt_dir = "/";
-  FILE *fp;
+  FILE *fd;
   char buffer[32] = {0};
-  float usedsize = 0;
-  float totalsize = 0;
+  uint32_t totalSize = 0;
+  uint32_t usedSize = 0;
+  uint32_t availableSize = 0;
+  uint8_t pctFree = 0;
 
-  fp = popen("df -k / | awk '{if (NR==2) {print $3 / 1048576\" \"$2 / 1048576}}'", "r");
-  if (fp == NULL)
+  fd = popen("df -k / | awk '{if (NR==2) {print $2\" \"$3\" \"$4\" \"$5+0}}'", "r");
+  if (fd == NULL)
   {
     fprintf(stderr, "rpiInfo: Unable to stat %s filesystem.\n", mnt_dir);
-    return;
+    return 0;
   }
 
-  fgets(buffer, sizeof(buffer), fp);
+  fgets(buffer, sizeof(buffer), fd);
 
-  pclose(fp);
+  pclose(fd);
 
   // Parse buffer
-  sscanf(buffer, "%f %f", &usedsize, &totalsize);
-  *MemSize = atof(totalsize);
-  *freesize = *MemSize - atof(usedsize);
+  sscanf(buffer, "%lu %lu %lu %u", &totalSize, &usedSize, &availableSize, &pctFree);
 
-  fprintf(stderr, "Disk Free: %f\tTotal: %f\n", usedsize, totalsize);
-  fprintf(stderr, "Disk Free: %f GiB\tTotal: %f GiB\n", freesize, MemSize);
+  /*
+  fprintf(stderr, "(df) Disk Free: %lu B, Disk Used: %lu B (%u %%), Total: %lu B\n", availableSize, usedSize, pctFree, totalSize);
+  */
+
+  return pctFree;
 }
 
 /**
@@ -193,7 +205,7 @@ uint8_t GetCPUTemperature(void)
 {
   FILE *fd;
   char buffer[150] = {0};
-  unsigned int temp;
+  uint16_t temp;
 
   fd = fopen("/sys/class/thermal/thermal_zone0/temp", "r");
   if (fd == NULL)
@@ -209,7 +221,7 @@ uint8_t GetCPUTemperature(void)
   // Parse buffer
   sscanf(buffer, "%u", &temp);
 
-  return atoi((TEMPERATURE_TYPE == FAHRENHEIT) ? temp / 1000 * 1.8 + 32 : temp / 1000);
+  return (TEMPERATURE_TYPE == FAHRENHEIT) ? temp / 1000 * 1.8 + 32 : temp / 1000;
 }
 
 /**
@@ -219,25 +231,25 @@ uint8_t GetCPUTemperature(void)
  */
 uint8_t GetCPUUsageTop(void)
 {
-  FILE *fp;
+  FILE *fd;
   char buffer[16] = {0};
 
-  fp = popen("env CPULOOP=1 top -bn 1 | grep -m 1 'Cpu(s)' | awk '{print 100 - $8}'", "r");
-  if (fp == NULL)
+  fd = popen("top -b -n2 -d1 | grep -m 1 'Cpu(s)' | awk '{print $2 + $4 + $6 + $13 + $15}'", "r");
+  if (fd == NULL)
   {
     fprintf(stderr, "rpiInfo: Unable to query top for CPU usage.\n");
     return 0;
   }
 
-  fgets(buffer, sizeof(buffer), fp);
+  fgets(buffer, sizeof(buffer), fd);
 
-  pclose(fp);
+  pclose(fd);
 
-  ///*
-    fprintf(stderr, "top CPU %f%%\n", atof(buffer));
-  //*/
+  /*
+  fprintf(stderr, "top CPU %f%%\n", atof(buffer));
+  */
 
-  return atoi(buffer);
+  return round(atof(buffer));
 }
 
 struct cpustat
@@ -267,7 +279,7 @@ uint8_t GetCPUUsagePstat(void)
   fd = fopen("/proc/stat", "r");
   if (fd == NULL)
   {
-    fprintf(stderr, "rpiInfo: Unable to open /proc/stat file.\n");
+    fprintf(stderr, "rpiInfo: Unable to open /proc/stat pseudofile.\n");
     return 0;
   }
 
@@ -276,22 +288,16 @@ uint8_t GetCPUUsagePstat(void)
 
   fclose(fd);
 
-  unsigned long long int prev_total = prev.t_idle + prev.t_iowait + prev.t_user + prev.t_nice + prev.t_system + prev.t_irq + prev.t_softirq + prev.t_steal;
-
-  /*
-    fprintf(stderr, "%lu %lu %lu %lu %lu %lu %lu %lu %lu %lu\n", prev.t_user, prev.t_nice, prev.t_system, prev.t_idle, prev.t_iowait, prev.t_irq, prev.t_softirq, prev.t_steal, prev.t_guest, prev.t_guestnice);
-    unsigned long long int prev_idle = prev.t_idle + prev.t_iowait;
-    unsigned long long int prev_nonidle = prev.t_user + prev.t_nice + prev.t_system + prev.t_irq + prev.t_softirq + prev.t_steal;
-    //unsigned long long int prev_total = prev_idle + prev_nonidle;
-  */
+  unsigned long long int prev_total = prev.t_user + prev.t_nice + prev.t_system + prev.t_idle + prev.t_iowait + prev.t_irq + prev.t_softirq + prev.t_steal;
+  unsigned long long int prev_util = prev.t_user + prev.t_nice + prev.t_system + prev.t_irq + prev.t_softirq;
 
   // Wait for one second to collect data to calculate delta
-  sleep(3);
+  sleep(1);
 
   fd = fopen("/proc/stat", "r");
   if (fd == NULL)
   {
-    fprintf(stderr, "rpiInfo: Unable to open /proc/stat peudofile.\n");
+    fprintf(stderr, "rpiInfo: Unable to open /proc/stat pseudofile.\n");
     return 0;
   }
 
@@ -300,32 +306,36 @@ uint8_t GetCPUUsagePstat(void)
 
   fclose(fd);
 
-  unsigned long long int cur_total = cur.t_idle + cur.t_iowait + cur.t_user + cur.t_nice + cur.t_system + cur.t_irq + cur.t_softirq + cur.t_steal;
+  unsigned long long int cur_total = cur.t_user + cur.t_nice + cur.t_system + cur.t_idle + cur.t_iowait + cur.t_irq + cur.t_softirq + cur.t_steal;
+  unsigned long long int cur_util = cur.t_user + cur.t_nice + cur.t_system + cur.t_irq + cur.t_softirq;
+  unsigned long int total_d = cur_total - prev_total;
+
+  float cpuPct = (float)(cur_util - prev_util) / total_d * 100.0;
 
   /*
-    fprintf(stderr, "%lu %lu %lu %lu %lu %lu %lu %lu %lu %lu\n", cur.t_user, cur.t_nice, cur.t_system, cur.t_idle, cur.t_iowait, cur.t_irq, cur.t_softirq, cur.t_steal, cur.t_guest, cur.t_guestnice);
-    unsigned long long int cur_idle = cur.t_idle + cur.t_iowait;
-    unsigned long long int cur_nonidle = cur.t_user + cur.t_nice + cur.t_system + cur.t_irq + cur.t_softirq + cur.t_steal;
-    //unsigned long long int cur_total = cur_idle + cur_nonidle;
+  fprintf(stderr, "%lu %lu %lu %lu %lu %lu %lu %lu %lu %lu\n", prev.t_user, prev.t_nice, prev.t_system, prev.t_idle, prev.t_iowait, prev.t_irq, prev.t_softirq, prev.t_steal, prev.t_guest, prev.t_guestnice);
 
-    fprintf(stderr, "PREV: idle:%llu\tnonidle: %llu\ttotal: %llu\n", prev_idle, prev_nonidle, prev_total);
-    fprintf(stderr, "CUR: idle:%llu\tnonidle: %llu\ttotal: %llu\n", cur_idle, cur_nonidle, cur_total);
+  fprintf(stderr, "%lu %lu %lu %lu %lu %lu %lu %lu %lu %lu\n", cur.t_user, cur.t_nice, cur.t_system, cur.t_idle, cur.t_iowait, cur.t_irq, cur.t_softirq, cur.t_steal, cur.t_guest, cur.t_guestnice);
 
-    // Calculate delta values
-    unsigned long int total_d = cur_total - prev_total;
-    unsigned long int idle_d = cur_idle - prev_idle;
-    unsigned long int used_d = total_d - idle_d;
-    //float cpu_perc = (float)used_d / (float)total_d * 100.0;
-    fprintf(stderr, "TOTAL prev: %llu\tcurr: %llu\tdelta: %lu\n", prev_total, cur_total, total_d);
-    fprintf(stderr, "IDLE  prev: %llu\tcurr: %llu\tdelta: %lu\n", prev_idle, cur_idle, idle_d);
-    fprintf(stderr, "USED  delta: %lu\n", used_d);
+  fprintf(stderr, "%lu us, %lu ni, %lu sy, %lu hi %lu si = %lu\n",
+          (cur.t_user - prev.t_user),
+          (cur.t_nice - prev.t_nice),
+          (cur.t_system - prev.t_system),
+          (cur.t_irq - prev.t_irq),
+          (cur.t_softirq - prev.t_softirq),
+          total_d);
+
+  fprintf(stderr, "%f us, %f ni, %f sy, %f hi %f si\n",
+          (float)(cur.t_user - prev.t_user) / total_d * 100.0,
+          (float)(cur.t_nice - prev.t_nice) / total_d * 100.0,
+          (float)(cur.t_system - prev.t_system) / total_d * 100.0,
+          (float)(cur.t_irq - prev.t_irq) / total_d * 100.0,
+          (float)(cur.t_softirq - prev.t_softirq) / total_d * 100.0);
+
+  fprintf(stderr, "%f %%\n", (float)(cur_util - prev_util) / total_d * 100.0);
+
+  fprintf(stderr, "pstat CPU %f%%\n", cpuPct);
   */
 
-  float cpu_perc = (float)(cur_total - prev_total - cur.t_idle - cur.t_iowait + prev.t_idle + prev.t_iowait) / (float)(cur_total - prev_total) * 100.0;
-
-  ///*
-    fprintf(stderr, "pstat CPU %f%%\n", cpu_perc);
-  //*/
-
-  return atoi(cpu_perc);
+  return round(cpuPct);
 }
