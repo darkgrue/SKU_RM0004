@@ -2,7 +2,7 @@
 
 Display driver for UCTRONICS Pi Rack Pro (SKU RM0004)
 
-The project supports running on the Raspberry Pi and [HomeAssistant](https://github.com/UCTRONICS/UCTRONICS_RM0004_HA).
+The project supports running on the Raspberry Pi and [HomeAssistant](https://github.com/darkgrue/addon-sku_rm0004).
 
 ## I2C
 Begin by enabling the I2C interface, add the following to the /boot/config.txt file:
