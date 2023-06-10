@@ -25,7 +25,7 @@ sudo reboot now
 
 ## Clone SKU_RM0004 Library
 ```bash
-git clone https://github.com/UCTRONICS/SKU_RM0004.git
+git clone https://github.com/darkgrue/SKU_RM0004
 ```
 
 ## Compile 
