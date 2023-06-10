@@ -1,57 +1,76 @@
 # SKU_RM0004
-The project supports running on RaspberryPi, Ubuntu, [HomeAssistant](https://github.com/UCTRONICS/UCTRONICS_RM0004_HA),You can also use Python to call compiled DLLs on these platforms.
+
+Display driver for UCTRONICS Pi Rack Pro (SKU RM0004)
+
+The project supports running on the Raspberry Pi and [HomeAssistant](https://github.com/UCTRONICS/UCTRONICS_RM0004_HA).
+
 # RaspberryPi
-## Turn on i2c and set the speed
-**Add the following to the /boot/config.txt file**
+
+## I2C
+Begin by enabling the I2C interface, add the following to the /boot/config.txt file:
+
 ```bash
 dtparam=i2c_arm=on,i2c_arm_baudrate=400000
 ```
 
-## Turn on the button to control the shutdown function
-**Add the following to the /boot/config.txt file**
+## Enable Shutdown Function
+Add the following to the /boot/config.txt file:
+
 ```bash
 dtoverlay=gpio-shutdown,gpio_pin=4,active_low=1,gpio_pull=up
 ```
 
-**reboot your system**
-```bash
-sudo reboot
-```
-**Wait for the system to restart**
+Reboot the system and wait for the system to restart:
 
-##  Clone SKU_RM0004 library 
+```bash
+sudo reboot now
+```
+
+## Clone SKU_RM0004 Library
 ```bash
 git clone https://github.com/UCTRONICS/SKU_RM0004.git
 ```
+
 ## Compile 
 ```bash
 cd SKU_RM0004
 make
 ```
+
 ## Run 
 ```
 ./display
 ```
-
-
-
-
 ## Add automatic start script
-**Open the rc.local file**
+Copy the binary file to `/usr/local/bin/`:
+
+```bash
+sudo cp ./display /usr/local/bin/
+```
+
+Choose one of the following configuration options (`systemd` **or** `rc.local`):
+ 
+```bash
+sudo cp ./contrib/RPiRackPro.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable RPiRackPro.service
+sudo systemctl start RPiRackPro.service
+```
+
+**OR** add the startup command to the `rc.local` script (not recommended)
+
 ```bash
 sudo nano /etc/rc.local
 ```
-**Add command to the rc.local file**
+
+and add the command to the rc.local file:
+
 ```bash
-cd /home/pi/SKU_RM0004
-make clean 
-make 
-./display &
+/usr/local/bin/display &
 ```
-**reboot your system**
 
+Reboot your system:
 
-
-
-
-
+```bash
+sudo reboot now
+```

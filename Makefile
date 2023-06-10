@@ -25,7 +25,6 @@ $(TARGET):$(OBJS)
 $(OBJS) : obj/%.o : %.c
 	$(CC) -c $(INCLUDE) -o $@ $<
 
-
 clean:
 	sudo rm -rf $(OBJ)
 	sudo rm -rf $(TATGET)

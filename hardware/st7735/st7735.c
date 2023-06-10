@@ -1,21 +1,21 @@
-#include "st7735.h"
-#include "time.h"
+#include <fcntl.h>
+#include <limits.h>
 #include <stdio.h>
 #include <string.h>
-#include <sys/sysinfo.h>
-#include <sys/vfs.h>
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <sys/ioctl.h>
-#include <netinet/in.h>
-#include <net/if.h>
+#include <time.h>
 #include <unistd.h>
 #include <arpa/inet.h>
-#include <sys/ioctl.h>
 #include <linux/i2c.h>
 #include <linux/i2c-dev.h>
-#include <fcntl.h>
+#include <net/if.h>
+#include <netinet/in.h>
+#include <sys/ioctl.h>
+#include <sys/socket.h>
+#include <sys/sysinfo.h>
+#include <sys/types.h>
+#include <sys/vfs.h>
 #include "rpiInfo.h"
+#include "st7735.h"
 
 int i2cd;
 
@@ -311,9 +311,17 @@ void lcd_display_percentage(uint8_t val, uint16_t color)
  */
 void lcd_display_cpuLoad(void)
 {
+    char hostname[HOST_NAME_MAX + 1];
     char iPSource[20] = {0};
     uint8_t cpuLoad = 0;
+    char buffer[20];
     char cpuStr[10] = {0};
+
+    gethostname(hostname, HOST_NAME_MAX + 1);
+
+    /*
+    printf("hostname: %s\n", hostname);
+    */
 
     lcd_fill_screen(ST7735_BLACK);
     lcd_fill_rectangle(0, 20, ST7735_WIDTH, 5, ST7735_BLUE);
@@ -330,7 +338,10 @@ void lcd_display_cpuLoad(void)
     }
     else
     {
-        lcd_write_string(0, 0, CUSTOM_DISPLAY, Font_8x16, ST7735_WHITE, ST7735_BLACK);
+        strncpy(buffer, (*CUSTOM_DISPLAY != '\0') ? CUSTOM_DISPLAY : hostname, sizeof(buffer));
+        // Maximum of 20 characters for 8x16 font
+        // Center 8x16 font
+        lcd_write_string(4 + ((19 - strlen(buffer)) / 2 * 8), 0, buffer, Font_8x16, ST7735_WHITE, ST7735_BLACK);
     }
 
     lcd_write_string(36, 35, "CPU:", Font_11x18, ST7735_WHITE, ST7735_BLACK);

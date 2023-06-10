@@ -1,6 +1,7 @@
-#include "rpiInfo.h"
+#include <fcntl.h>
 #include <stdio.h>
 #include <math.h>
+#include <stdlib.h>
 #include <string.h>
 #include <sys/sysinfo.h>
 #include <sys/vfs.h>
@@ -14,9 +15,8 @@
 #include <sys/ioctl.h>
 #include <linux/i2c.h>
 #include <linux/i2c-dev.h>
-#include <fcntl.h>
+#include "rpiInfo.h"
 #include "st7735.h"
-#include <stdlib.h>
 
 /**
  * @brief Get the IP address of the default interface.

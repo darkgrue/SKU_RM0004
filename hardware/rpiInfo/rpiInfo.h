@@ -10,9 +10,11 @@
 /**********Select display temperature type**************/
 
 /************************Control the display of IP address. Can customize the display****************/
-#define DISPLAY_IP_ADDR true
+#define DISPLAY_IP_ADDR false
 
-#define CUSTOM_DISPLAY "UCTRONICS"
+// Set empty string to display hostname.
+// Maximum of 20 characters for 8x16 font.
+#define CUSTOM_DISPLAY ""
 /************************Turn off the IP display. Can customize the display****************/
 
 char *GetIPAddress(void);

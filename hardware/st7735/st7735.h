@@ -1,8 +1,8 @@
 #ifndef __ST7735_H__
 #define __ST7735_H__
 
-#include "fonts.h"
 #include <stdbool.h>
+#include "fonts.h"
 
 #define I2C_ADDRESS 0x18
 #define BURST_MAX_LENGTH 160
