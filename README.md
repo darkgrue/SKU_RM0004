@@ -1,5 +1,4 @@
 # SKU_RM0004
-
 Display driver for UCTRONICS Pi Rack Pro (SKU RM0004)
 
 The project supports running on the Raspberry Pi and [HomeAssistant](https://github.com/darkgrue/addon-sku_rm0004).
