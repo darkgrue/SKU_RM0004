@@ -46,7 +46,7 @@ Copy the binary file to `/usr/local/bin/`:
 sudo cp ./display /usr/local/bin/
 ```
 
-Choose one of the following configuration options (`systemd` **or** `rc.local`):
+Choose one of the following configuration options (`systemd` **or** `rc.local`). Systemd method is recommended:
  
 ```bash
 sudo cp ./contrib/RPiRackPro.service /etc/systemd/system/
